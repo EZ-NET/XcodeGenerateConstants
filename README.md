@@ -4,11 +4,12 @@ Generate Swift code which defines constants written in a Property List file.
 
 ## How to Install
 
-git clone https://github.com/EZ-NET/XcodeGenerateConstants.gi
-t
+```
+git clone https://github.com/EZ-NET/XcodeGenerateConstants.git
 cd XcodeGenerateConstants
 
 sudo make install
+```
 
 ## How to Use
 
