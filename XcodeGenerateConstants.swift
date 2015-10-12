@@ -6,16 +6,19 @@ import Foundation
 func main() throws {
     
     let _arguments = NSProcessInfo.processInfo().arguments
-    let arguments = Array(_arguments.suffixFrom(_arguments.endIndex - 3))
+    let startIndex = _arguments.indexOf("--")!.successor()
+    let arguments = Array(_arguments.suffixFrom(startIndex))
 
-    guard arguments.count == 3 else {
+	print(_arguments)
+	
+    guard arguments.count == 2 else {
         
-        throw GenerateError.InvalidArguments(reason: "count of arguments")
+        throw GenerateError.InvalidArguments(reason: arguments.joinWithSeparator(" "))
     }
 
     let target = arguments[0]
-    let sourcePath = NSURL(fileURLWithPath: arguments[1])
-    let targetPath = NSURL(fileURLWithPath: arguments[2])
+    let sourcePath = NSURL(fileURLWithPath: NSHomeDirectory()).URLByAppendingPathComponent("Library/XcodeGenerateConstants")
+    let targetPath = NSURL(fileURLWithPath: arguments[1])
     
     try Generator(target, sourcePath: sourcePath, targetPath: targetPath).generate()
 }
@@ -25,6 +28,24 @@ enum GenerateError : ErrorType {
     case InvalidArguments(reason: String)
     case ReadError(path: NSURL)
     case InvalidContents(path: NSURL)
+}
+
+extension GenerateError : CustomStringConvertible {
+
+	var description:String {
+		
+		switch self {
+			
+		case .InvalidArguments(let reason):
+			return "Invalid Arguments. \(reason)"
+				
+		case .ReadError(let path):
+			return "Failed to read path '\(path)'."
+			
+		case .InvalidContents(let path):
+			return "Invalid contents in path '\(path)'."
+		}
+	}
 }
 
 enum GenerateType {
@@ -109,7 +130,7 @@ final class Stream : OutputStreamType {
         
         func headCode() -> [String] {
             
-            var definition = "struct \(self.name)"
+            var definition = "struct \(self.name) {"
             
             func getDefinitionSuffix() -> String? {
                 
@@ -181,4 +202,11 @@ final class Generator {
     }
 }
 
-try main()
+do {
+	try main()
+}
+catch {
+
+	print("ERROR: \(error)")
+	exit(1)
+}

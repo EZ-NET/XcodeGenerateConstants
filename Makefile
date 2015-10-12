@@ -3,6 +3,6 @@ DIST = /usr/local/bin
 
 install:
 	@echo "Install $(BIN)"
-	cp $(BIN).swift $(DIST)/$(BIN)
+	cp -f $(BIN).swift $(DIST)/$(BIN)
 	chmod +x $(DIST)/$(BIN)
 
