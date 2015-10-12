@@ -9,8 +9,6 @@ func main() throws {
     let startIndex = _arguments.indexOf("--")!.successor()
     let arguments = Array(_arguments.suffixFrom(startIndex))
 
-	print(_arguments)
-	
     guard arguments.count == 2 else {
         
         throw GenerateError.InvalidArguments(reason: arguments.joinWithSeparator(" "))
