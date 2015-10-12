@@ -11,6 +11,8 @@ cd XcodeGenerateConstants
 sudo make install
 ```
 
+The script `XcodeGenerateConstants` is installed in ``/usr/local/bin` directory.
+
 ## How to Use
 
 ```
