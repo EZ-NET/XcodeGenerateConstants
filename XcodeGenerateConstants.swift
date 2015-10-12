@@ -71,7 +71,7 @@ struct Definition : Streamable {
         
         func getDefinition(key:String, value:String) -> String {
             
-            return "let \(key) = \(quote(value))"
+            return "var \(key):String { return \(quote(value)) }"
         }
     
         return getDefinition(self.key, value: self.value)
