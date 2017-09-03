@@ -5,27 +5,27 @@ import Foundation
 
 func main() throws {
     
-    let _arguments = NSProcessInfo.processInfo().arguments
-    let startIndex = _arguments.indexOf("--")!.successor()
-    let arguments = Array(_arguments.suffixFrom(startIndex))
+    let _arguments = ProcessInfo.processInfo.arguments
+    let startIndex = _arguments.index(of: "--")!.advanced(by: 1)
+    let arguments = Array(_arguments.suffix(from: startIndex))
 
     guard arguments.count == 2 else {
         
-        throw GenerateError.InvalidArguments(reason: arguments.joinWithSeparator(" "))
+        throw GenerateError.invalidArguments(reason: arguments.joined(separator: " "))
     }
 
     let target = arguments[0]
-    let sourcePath = NSURL(fileURLWithPath: NSHomeDirectory()).URLByAppendingPathComponent("Library/XcodeGenerateConstants")
-    let targetPath = NSURL(fileURLWithPath: arguments[1])
+    let sourcePath = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/XcodeGenerateConstants")
+    let targetPath = URL(fileURLWithPath: arguments[1])
     
     try Generator(target, sourcePath: sourcePath, targetPath: targetPath).generate()
 }
 
-enum GenerateError : ErrorType {
+enum GenerateError : Error {
 
-    case InvalidArguments(reason: String)
-    case ReadError(path: NSURL)
-    case InvalidContents(path: NSURL)
+    case invalidArguments(reason: String)
+    case readError(path: URL)
+    case invalidContents(path: URL)
 }
 
 extension GenerateError : CustomStringConvertible {
@@ -34,13 +34,13 @@ extension GenerateError : CustomStringConvertible {
 		
 		switch self {
 			
-		case .InvalidArguments(let reason):
+		case .invalidArguments(let reason):
 			return "Invalid Arguments. \(reason)"
 				
-		case .ReadError(let path):
+		case .readError(let path):
 			return "Failed to read path '\(path)'."
 			
-		case .InvalidContents(let path):
+		case .invalidContents(let path):
 			return "Invalid contents in path '\(path)'."
 		}
 	}
@@ -51,7 +51,7 @@ enum GenerateType {
     case Swift
 }
 
-struct Definition : Streamable {
+struct Definition : TextOutputStreamable {
     
     var key:String
     var value:String
@@ -64,9 +64,9 @@ struct Definition : Streamable {
     
     func toCode() -> String {
     
-        func quote(value:String) -> String {
+        func quote(_ value:String) -> String {
             
-            return "\"" + value.stringByReplacingOccurrencesOfString("\"", withString: "\\") + "\""
+            return "\"" + value.replacingOccurrences(of: "\"", with: "\\") + "\""
         }
         
         func getDefinition(key:String, value:String) -> String {
@@ -74,23 +74,23 @@ struct Definition : Streamable {
             return "var \(key):String { return \(quote(value)) }"
         }
     
-        return getDefinition(self.key, value: self.value)
+        return getDefinition(key: key, value: value)
     }
     
-    func writeTo<Target : OutputStreamType>(inout target: Target) {
+    func write<Target : TextOutputStream>(to target: inout Target) {
         
-        target.write(self.toCode())
+        target.write(toCode())
     }
 }
 
-final class Stream : OutputStreamType {
+final class Stream : TextOutputStream {
     
     private var name:String
-    private var path:NSURL
+    private var path:URL
     private var options:[String]?
     private var buffer:Array<String>
 
-    init(name:String, path:NSURL) {
+    init(name:String, path:URL) {
         
         self.name = name
         self.path = path
@@ -98,29 +98,29 @@ final class Stream : OutputStreamType {
         self.buffer = Array<String>()
     }
     
-    convenience init(name:String, path:NSURL, options: String...) {
+    convenience init(name:String, path:URL, options: String...) {
 
         self.init(name: name, path: path)
         self.options = options
     }
     
     
-    func write(string: String) {
+    func write(_ string: String) {
         
         buffer.append(string)
     }
     
     func flush() throws {
      
-        try generateConstantsWithType(.Swift).writeToURL(self.path, atomically: true, encoding: NSUTF8StringEncoding)
+        try generateConstants(type: .Swift).write(to: path, atomically: true, encoding: .utf8)
     }
     
-    private func generateConstantsWithType(type: GenerateType) -> String {
+    private func generateConstants(type: GenerateType) -> String {
     
         switch type {
             
         case .Swift:
-            return self.generateSwiftConstants()
+            return generateSwiftConstants()
         }
     }
     
@@ -128,21 +128,21 @@ final class Stream : OutputStreamType {
         
         func headCode() -> [String] {
             
-            var definition = "struct \(self.name) {"
+            var definition = "struct \(name) {"
             
             func getDefinitionSuffix() -> String? {
                 
-                guard let conforms = self.options else {
+                guard let conforms = options else {
                     
                     return nil
                 }
                 
-                return " : ".stringByAppendingString(conforms.joinWithSeparator(", "))
+                return " : ".appending(conforms.joined(separator: ", "))
             }
             
             return [
                 
-                definition.stringByAppendingString(getDefinitionSuffix() ?? ""),
+                definition.appending(getDefinitionSuffix() ?? ""),
                 ""
             ]
         }
@@ -154,22 +154,22 @@ final class Stream : OutputStreamType {
         
         func bodyCode() -> [String] {
             
-            return self.buffer.map { "\t\($0)" }
+            return buffer.map { "\t\($0)" }
         }
         
         let code = headCode() + bodyCode() + footCode()
         
-        return code.joinWithSeparator("\n")
+        return code.joined(separator: "\n")
     }
 }
 
 final class Generator {
     
     private(set) var target:String
-    private(set) var sourcePath:NSURL
-    private(set) var targetPath:NSURL
+    private(set) var sourcePath:URL
+    private(set) var targetPath:URL
     
-    init(_ target:String, sourcePath:NSURL, targetPath:NSURL) {
+    init(_ target:String, sourcePath:URL, targetPath:URL) {
         
         self.target = target
         self.sourcePath = sourcePath
@@ -178,17 +178,17 @@ final class Generator {
     
     func generate() throws {
         
-        let stream = Stream(name: self.target, path: self.targetPath.URLByAppendingPathComponent("\(self.target).swift"))
-        let plist = self.sourcePath.URLByAppendingPathComponent("\(self.target).plist")
+        let stream = Stream(name: target, path: targetPath.appendingPathComponent("\(target).swift"))
+        let plist = sourcePath.appendingPathComponent("\(target).plist")
         
-        guard let data = NSDictionary(contentsOfURL: plist) else {
+        guard let data = NSDictionary(contentsOf: plist) else {
             
-            throw GenerateError.ReadError(path: plist)
+            throw GenerateError.readError(path: plist)
         }
         
         guard let contents = data as? Dictionary<String, String> else {
             
-            throw GenerateError.InvalidContents(path: plist)
+            throw GenerateError.invalidContents(path: plist)
         }
         
         contents.map(Definition.init).map(Definition.toCode).forEach {
